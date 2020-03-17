@@ -5,6 +5,7 @@ import pickle as pkl
 import scipy.sparse as sp
 import sys
 import torch
+from torch.utils.data import DataLoader
 from typing import Dict
 
 
@@ -28,22 +29,33 @@ def load_data(dataset_str: str) -> Data:
     if dataset_str in ['ppi']:
         data = load_ppi_data()
     else:
-        data = load_ppi_graphsage_data()
+        exit()
     return data
 
 
-def load_ppi_subdata(dir: str, data_type: str) -> Data:
+def load_ppi_subdata(dir: str, data_type: str) -> DataLoader:
     G = nx.json_graph.node_link_graph(json.load(open(dir + data_type + "_graph.json")))
+    graph_id = np.load(dir + data_type + "_graph_id.npy")
     features = torch.FloatTensor(np.load(dir + data_type + "_feats.npy"))
     labels = torch.FloatTensor(np.load(dir + data_type + "_labels.npy"))
-    coo_adj = nx.to_scipy_sparse_matrix(G).tocoo()
-    edge_list = torch.from_numpy(np.vstack((coo_adj.row, coo_adj.col)).astype(np.int64))
-    edge_list = add_self_loops(edge_list, features.size(0))
-    adj = normalize_adj(edge_list)
-    return Data(adj, edge_list, features, labels)
+
+    data_list = []
+    id_set = list(np.unique(graph_id))
+    for id in id_set:
+        nodes = np.where(graph_id == id)[0]
+        subG = G.subgraph(nodes)
+        sub_feat = features[nodes]
+        sub_labels = labels[nodes]
+        coo_adj = nx.to_scipy_sparse_matrix(subG).tocoo()
+        sub_edges = torch.from_numpy(np.vstack((coo_adj.row, coo_adj.col)).astype(np.int64))
+        sub_edges = sub_edges - sub_edges.min()
+        sub_edges = add_self_loops(sub_edges, len(nodes))
+        adj = normalize_adj(sub_edges)
+        data_list.append(Data(adj, sub_edges, sub_feat, sub_labels))
+    return DataLoader(data_list, batch_size=2, collate_fn=my_collate_fn)
 
 
-def load_ppi_data() -> Dict[str, Data]:
+def load_ppi_data() -> Dict[str, DataLoader]:
     dir = "data/ppi/"
     train_data = load_ppi_subdata(dir, "train")
     val_data = load_ppi_subdata(dir, "valid")
@@ -53,22 +65,21 @@ def load_ppi_data() -> Dict[str, Data]:
             "test": test_data}
 
 
-def load_ppi_graphsage_data():
-    dir = "data/ppi/"
-    G = nx.json_graph.node_link_graph(json.load(open(dir + "ppi-G.json")))
-    val_ids = [n for n in G.nodes() if G.nodes[n]['val']]
-    test_ids = [n for n in G.nodes() if G.nodes[n]['test']]
-    train_ids = [n for n in G.nodes() if not G.nodes[n]['val'] and not G.nodes[n]['test']]
-
-    labels = json.load(open(dir + "ppi-class_map.json"))
-    train_labels = torch.LongTensor([labels[str(n)] for n in train_ids])
-    val_labels = torch.LongTensor([labels[str(n)] for n in val_ids])
-    test_labels = torch.LongTensor([labels[str(n)] for n in test_ids])
-
-    feats = np.load(dir + "ppi-feats.npy")
-    train_features = torch.FloatTensor([feats[n] for n in train_ids])
-    val_features = torch.FloatTensor([feats[n] for n in val_ids])
-    test_features = torch.FloatTensor([feats[n] for n in test_ids])
+def my_collate_fn(data_list):
+    adj_indices = data_list[0].adj._indices()
+    adj_values = data_list[0].adj._values()
+    edge_list = data_list[0].edge_list
+    for d in data_list[1:]:
+        idx = edge_list.max() + 1
+        adj_i = d.adj._indices() + idx
+        adj_v = d.adj._values()
+        adj_indices = torch.cat([adj_indices, adj_i], dim=1)
+        adj_values = torch.cat([adj_values, adj_v], dim=0)
+        edge_list = torch.cat([edge_list, d.edge_list + idx], dim=1)
+    adj = torch.sparse.FloatTensor(adj_indices, adj_values)
+    features = torch.cat([d.features for d in data_list], dim=0)
+    labels = torch.cat([d.labels for d in data_list], dim=0)
+    return Data(adj, edge_list, features, labels)
 
 
 def adj_list_from_dict(graph):

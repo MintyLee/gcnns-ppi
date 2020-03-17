@@ -62,6 +62,7 @@ class EarlyStopping:
 
 
 def train(model, optimizer, data):
+    data.to(device)
     model.train()
     optimizer.zero_grad()
     output = model(data)
@@ -71,6 +72,7 @@ def train(model, optimizer, data):
 
 
 def evaluate(model, data):
+    data.to(device)
     model.eval()
 
     with torch.no_grad():
@@ -89,13 +91,7 @@ def evaluate(model, data):
 
 def run(data, model, lr, weight_decay, epochs=200, niter=100, early_stopping=True, patience=10,
         use_loss=True, use_f1=False, save_model=False, verbose=False):
-    # for GPU
     train_data, val_data, test_data = data["train"], data["val"], data["test"]
-    train_data.to(device)
-    val_data.to(device)
-    test_data.to(device)
-
-    val_acc_list = []
     test_acc_list = []
 
     for _ in tqdm(range(niter)):
@@ -109,9 +105,12 @@ def run(data, model, lr, weight_decay, epochs=200, niter=100, early_stopping=Tru
             stop_checker = EarlyStopping(patience, verbose, use_loss, use_f1, save_model)
 
         for epoch in range(1, epochs + 1):
-            train(model, optimizer, train_data)
-            train_evals = evaluate(model, train_data)
-            val_evals = evaluate(model, val_data)
+            for data in train_data:
+                train(model, optimizer, data)
+            for data in train_data:
+                train_evals = evaluate(model, data)
+            for data in val_data:
+                val_evals = evaluate(model, data)
 
             if verbose:
                 print('epoch: {: 4d}'.format(epoch),
@@ -126,7 +125,8 @@ def run(data, model, lr, weight_decay, epochs=200, niter=100, early_stopping=Tru
 
         if torch.cuda.is_available():
             torch.cuda.synchronize()
-        evals = evaluate(model, test_data)
+        for data in test_data:
+            evals = evaluate(model, data)
         if verbose:
             for met, val in evals.items():
                 print(met, val)

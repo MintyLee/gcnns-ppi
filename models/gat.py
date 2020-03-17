@@ -6,9 +6,8 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
 class GAT(nn.Module):
-    def __init__(self, data, nhid, nhead, nhead_out, alpha, dropout):
+    def __init__(self, nfeat, nclass, nhid, nhead, nhead_out, alpha, dropout):
         super(GAT, self).__init__()
-        nfeat, nclass = data.num_features, data.num_classes
         self.atts1 = [GATConv(nfeat, nhid, dropout=dropout, alpha=alpha) for _ in range(nhead)]
         self.atts2 = [GATConv(nhid * nhead, nhid, dropout=dropout, alpha=alpha) for _ in range(nhead)]
         self.out_atts = [GATConv(nhid * nhead, nclass, dropout=dropout, alpha=alpha) for _ in range(nhead_out)]
@@ -95,6 +94,6 @@ class GATConv(nn.Module):
         return h_prime
 
 
-def create_gat_model(data, nhid=256, nhead=4, nhead_out=6, alpha=0.2, dropout=0.6):
-    model = GAT(data, nhid, nhead, nhead_out, alpha=alpha, dropout=dropout)
+def create_gat_model(nfeat, nclass, nhid=256, nhead=4, nhead_out=6, alpha=0.2, dropout=0.6):
+    model = GAT(nfeat, nclass, nhid, nhead, nhead_out, alpha=alpha, dropout=dropout)
     return model

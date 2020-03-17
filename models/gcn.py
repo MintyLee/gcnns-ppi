@@ -5,9 +5,8 @@ from torch.nn.modules.module import Module
 
 
 class GCN(nn.Module):
-    def __init__(self, data, nhid, dropout):
+    def __init__(self, nfeat, nclass, nhid, dropout):
         super(GCN, self).__init__()
-        nfeat, nclass = data.num_features, data.num_classes
         self.gc1 = GCNConv(nfeat, nhid)
         self.gc2 = GCNConv(nhid, nhid)
         self.gc3 = GCNConv(nhid, nclass)
@@ -55,6 +54,6 @@ class GCNConv(Module):
         return x
 
 
-def create_gcn_model(data, nhid=128, dropout=0.5):
-    model = GCN(data, nhid, dropout)
+def create_gcn_model(nfeat, nclass, nhid=128, dropout=0.5):
+    model = GCN(nfeat, nclass, nhid, dropout)
     return model
