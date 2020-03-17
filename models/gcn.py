@@ -27,7 +27,7 @@ class GCN(nn.Module):
         x = F.relu(self.gc2(x, adj))
         x = F.dropout(x, p=self.dropout, training=self.training)
         x = self.gc3(x, adj)
-        return F.sigmoid(x)
+        return torch.sigmoid(x)
 
 
 class GCNConv(Module):

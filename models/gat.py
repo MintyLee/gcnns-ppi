@@ -35,7 +35,7 @@ class GAT(nn.Module):
         x = torch.cat([att(x, edge_list) for att in self.atts2], dim=1)
         x = F.elu(x)
         x = torch.sum(torch.stack([att(x, edge_list) for att in self.out_atts]), dim=0) / len(self.out_atts)
-        return F.sigmoid(x)
+        return torch.sigmoid(x)
 
 
 def sp_softmax(indices, values, N):
