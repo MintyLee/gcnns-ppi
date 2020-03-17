@@ -9,12 +9,14 @@ class GCN(nn.Module):
         super(GCN, self).__init__()
         nfeat, nclass = data.num_features, data.num_classes
         self.gc1 = GCNConv(nfeat, nhid)
-        self.gc2 = GCNConv(nhid, nclass)
+        self.gc2 = GCNConv(nhid, nhid)
+        self.gc3 = GCNConv(nhid, nclass)
         self.dropout = dropout
 
     def reset_parameters(self):
         self.gc1.reset_parameters()
         self.gc2.reset_parameters()
+        self.gc3.reset_parameters()
 
     def forward(self, data):
         x = data.features
@@ -22,8 +24,10 @@ class GCN(nn.Module):
         x = F.dropout(x, p=self.dropout, training=self.training)
         x = F.relu(self.gc1(x, adj))
         x = F.dropout(x, p=self.dropout, training=self.training)
-        x = self.gc2(x, adj)
-        return F.log_softmax(x, dim=1)
+        x = F.relu(self.gc2(x, adj))
+        x = F.dropout(x, p=self.dropout, training=self.training)
+        x = self.gc3(x, adj)
+        return F.sigmoid(x)
 
 
 class GCNConv(Module):
@@ -51,6 +55,6 @@ class GCNConv(Module):
         return x
 
 
-def create_gcn_model(data, nhid=16, dropout=0.5):
+def create_gcn_model(data, nhid=128, dropout=0.5):
     model = GCN(data, nhid, dropout)
     return model

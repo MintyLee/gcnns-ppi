@@ -9,26 +9,33 @@ class GAT(nn.Module):
     def __init__(self, data, nhid, nhead, nhead_out, alpha, dropout):
         super(GAT, self).__init__()
         nfeat, nclass = data.num_features, data.num_classes
-        self.attentions = [GATConv(nfeat, nhid, dropout=dropout, alpha=alpha) for _ in range(nhead)]
+        self.atts1 = [GATConv(nfeat, nhid, dropout=dropout, alpha=alpha) for _ in range(nhead)]
+        self.atts2 = [GATConv(nhid * nhead, nhid, dropout=dropout, alpha=alpha) for _ in range(nhead)]
         self.out_atts = [GATConv(nhid * nhead, nclass, dropout=dropout, alpha=alpha) for _ in range(nhead_out)]
-        for i, attention in enumerate(self.attentions):
-            self.add_module('attention_{}'.format(i), attention)
-        for i, attention in enumerate(self.out_atts):
-            self.add_module('out_att{}'.format(i), attention)
+        for i, att in enumerate(self.atts1):
+            self.add_module('attention1_{}'.format(i), att)
+        for i, att in enumerate(self.atts2):
+            self.add_module('attention2_{}'.format(i), att)
+        for i, att in enumerate(self.out_atts):
+            self.add_module('out_att{}'.format(i), att)
         self.reset_parameters()
 
     def reset_parameters(self):
-        for att in self.attentions:
+        for att in self.atts1:
+            att.reset_parameters()
+        for att in self.atts2:
             att.reset_parameters()
         for att in self.out_atts:
             att.reset_parameters()
 
     def forward(self, data):
         x, edge_list = data.features, data.edge_list
-        x = torch.cat([att(x, edge_list) for att in self.attentions], dim=1)
+        x = torch.cat([att(x, edge_list) for att in self.atts1], dim=1)
+        x = F.elu(x)
+        x = torch.cat([att(x, edge_list) for att in self.atts2], dim=1)
         x = F.elu(x)
         x = torch.sum(torch.stack([att(x, edge_list) for att in self.out_atts]), dim=0) / len(self.out_atts)
-        return F.log_softmax(x, dim=1)
+        return F.sigmoid(x)
 
 
 def sp_softmax(indices, values, N):
@@ -88,6 +95,6 @@ class GATConv(nn.Module):
         return h_prime
 
 
-def create_gat_model(data, nhid=8, nhead=8, nhead_out=1, alpha=0.2, dropout=0.6):
+def create_gat_model(data, nhid=256, nhead=4, nhead_out=6, alpha=0.2, dropout=0.6):
     model = GAT(data, nhid, nhead, nhead_out, alpha=alpha, dropout=dropout)
     return model
