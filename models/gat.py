@@ -30,9 +30,9 @@ class GAT(nn.Module):
     def forward(self, data):
         x, edge_list = data.features, data.edge_list
         x = torch.cat([att(x, edge_list) for att in self.atts1], dim=1)
-        x = F.elu(x)
-        x = torch.cat([att(x, edge_list) for att in self.atts2], dim=1)
-        x = F.elu(x)
+        x1 = F.elu(x)
+        x = torch.cat([att(x1, edge_list) for att in self.atts2], dim=1)
+        x = F.elu(x) + x1
         x = torch.sum(torch.stack([att(x, edge_list) for att in self.out_atts]), dim=0) / len(self.out_atts)
         return torch.sigmoid(x)
 
@@ -95,6 +95,6 @@ class GATConv(nn.Module):
         return h_prime
 
 
-def create_gat_model(nfeat, nclass, nhid=256, nhead=4, nhead_out=6, alpha=0.2, dropout=0.6):
+def create_gat_model(nfeat, nclass, nhid=256, nhead=4, nhead_out=6, alpha=0.2, dropout=0.):
     model = GAT(nfeat, nclass, nhid, nhead, nhead_out, alpha=alpha, dropout=dropout)
     return model
