@@ -116,9 +116,9 @@ def run(data, model, lr, weight_decay, epochs=200, niter=100, early_stopping=Tru
             if verbose:
                 print('epoch: {: 4d}'.format(epoch),
                       'train loss: {:.5f}'.format(train_evals['loss']),
-                      'train f1: {:.5f}'.format(train_evals['acc']),
+                      'train f1: {:.5f}'.format(train_evals['f1_score']),
                       'val loss: {:.5f}'.format(val_evals['loss']),
-                      'val f1: {:.5f}'.format(val_evals['acc']))
+                      'val f1: {:.5f}'.format(val_evals['f1_score']))
 
             if early_stopping:
                 if stop_checker.check(val_evals, model, epoch):
@@ -132,12 +132,12 @@ def run(data, model, lr, weight_decay, epochs=200, niter=100, early_stopping=Tru
                 print(met, val)
 
         # val_acc_list.append(evals['val_acc'])
-        test_acc_list.append(evals['acc'])
+        test_acc_list.append(evals['f1_score'])
 
     print(mean(test_acc_list))
     print(std(test_acc_list))
     return {
         # 'val_acc': mean(val_acc_list),
-        'test_acc': mean(test_acc_list),
-        'test_acc_std': std(test_acc_list)
+        'test_f1': mean(test_acc_list),
+        'test_f1_std': std(test_acc_list)
     }
