@@ -65,7 +65,7 @@ def train(model, optimizer, data):
     model.train()
     optimizer.zero_grad()
     output = model(data)
-    loss = F.binary_cross_entropy_with_logits(output, data.labels)
+    loss = F.binary_cross_entropy(output, data.labels)
     loss.backward()
     optimizer.step()
 
@@ -77,8 +77,8 @@ def evaluate(model, data):
         output = model(data)
 
     outputs = {}
-    loss = F.binary_cross_entropy_with_logits(output, data.labels).item()
-    predict = np.where(output.cpu().numpy() >= 0.5, 1, 0)
+    loss = F.binary_cross_entropy(output, data.labels).item()
+    predict = np.where(output.data.cpu().numpy() >= 0.5, 1, 0)
     score = f1_score(data.labels.data.cpu().numpy(),
                      predict, average='micro')
     outputs['loss'] = loss
